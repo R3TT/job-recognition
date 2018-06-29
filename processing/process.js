@@ -1,9 +1,11 @@
-var all = require( './allJobTitles' );
+var all = require( '../lib/allJobTitles' );
 
 var _ = require( 'lodash' );
+var pos = require( 'pos' );
 
-var first = [];
-var last = [];
+var primary = [];
+var modifier = [];
+var single = [];
 var stop = [];
 
 var addToArray = function ( arr, itemUpper )
@@ -11,25 +13,52 @@ var addToArray = function ( arr, itemUpper )
 	item = itemUpper.toLowerCase();
 	if ( item == itemUpper )
 	{
-		stop.push( item );
-		stop = _.uniq( stop );
+		if ( ! stop.includes( item ) && item.search( /^[A-z]+$/ ) > -1 )
+		{
+			stop.push( item );
+			// console.log( '.', item );
+		}
+		return;
+	} else if ( itemUpper == itemUpper.toUpperCase() ) {
+		// this is likely an abbreviation for a title
+		if ( item.length > 1 && ! primary.includes( item ) )
+		{
+			primary.push( item );
+			// console.log( '*', item );
+		}
+		return;
 	}
 	if ( item.length < 2 ) return;
 	if ( ! arr.includes( item ) )
 	{
 		arr.push( item );
+		if ( arr == primary )
+		{
+			// console.log( '*', item );
+		} else {
+			// console.log( '-', item );
+		}
 	}
 };
 
 var processTitle = function ( title )
 {
-	// var words = _.words( title, /[^, ]+/g );
-	var words = _.words( title );
-	var lastWord = words.pop();
-	addToArray( last, lastWord );
-	_.each( words, w =>
+	var titleWords = _.words( title );
+	if ( titleWords.length == 1 && ! single.includes( title.toLowerCase() ) )
 	{
-		addToArray( first, w );
+		single.push( title.toLowerCase() );
+	}
+	var words = new pos.Lexer().lex( titleWords.join( ' ' ) );
+	var tagger = new pos.Tagger();
+	var taggedWords = tagger.tag( words );
+	_.each( taggedWords, w =>
+	{
+		if ( w[ 1 ] == 'NNP' )
+		{
+			addToArray( primary, w[ 0 ] );
+		} else {
+			addToArray( modifier, w[ 0 ] );
+		}
 	});
 };
 
@@ -39,19 +68,23 @@ _.each( all, title =>
 	if ( split.length > 1 )
 	{
 		var shortTitle = split[ 1 ].replace( ')', '' );
-		var secondary = shortTitle.split( ',' );
-		processTitle( secondary[ 0 ] );
+		var abbrevAndSecondary = shortTitle.split( ',' );
+		processTitle( abbrevAndSecondary[ 0 ] );
 		title = title.replace( ' (' + shortTitle + ')', '' );
 	}
-	var secondary2 = title.split( ',' );
-	processTitle( secondary2[ 0 ] );
+	var titleAndSecondary = title.split( ',' );
+	processTitle( titleAndSecondary[ 0 ] );
 });
-first.sort();
-last.sort();
+primary.sort();
+modifier.sort();
+single.sort();
+stop.sort();
 
-console.log( '-- first ----------------------------------------' );
-console.log( JSON.stringify( first, null, '\t' ) );
-console.log( '-- last ----------------------------------------' );
-console.log( JSON.stringify( last, null, '\t' ) );
+console.log( '-- primary -------------------------------------' );
+console.log( JSON.stringify( primary, null, '\t' ) );
+console.log( '-- modifier ------------------------------------' );
+console.log( JSON.stringify( modifier, null, '\t' ) );
+console.log( '-- single --------------------------------------' );
+console.log( JSON.stringify( single, null, '\t' ) );
 console.log( '-- stop ----------------------------------------' );
-console.log( JSON.stringify( stop.sort(), null, '\t' ) );
+console.log( JSON.stringify( stop, null, '\t' ) );

@@ -1,6 +1,7 @@
-var parts = require( './lib/parts' );
-var ends = require( './lib/ends' );
-var stops = require( './lib/stopWords' );
+var primary = require( './lib/primary' );
+var single = require( './lib/single' );
+var modifier = require( './lib/modifier' );
+var stops = require( './lib/stops' );
 
 var _ = require( 'lodash' );
 
@@ -14,45 +15,60 @@ jtr.find = function ( txt, config )
 	var splits = jtr.splitOnCommonDivisions( txt );
 	_.each( splits, ( split, splitIdx ) =>
 	{
-		// find last names then walk backwards
+		if ( jtr.debug ) console.log( '===', split );
 		var wordStack = [];
-		var end = false;
+		var title = [];
 
-		var walkWordStackBackwards = function ()
+		var stripStopsOffEnd = function ()
 		{
-			var title = [];
+			var titleLength = title.length;
+			for ( var ii = 0; ii < titleLength; ii++ )
+			{
+				var t = title.pop();
+				if ( ! stops.includes( t.toLowerCase() ) )
+				{
+					title.push( t );
+					break;
+				}
+			}
+		};
+
+		var addWordsToStart = function ()
+		{
 			var stackSize = wordStack.length;
 			for ( var ii = 0; ii < stackSize; ii++ )
 			{
-				var part = wordStack.pop();
-				var p = part.toLowerCase();
-				if ( jtr.debug ) console.log( '-', p );
-				if ( ends.includes( p ) || parts.includes( p ) )
+				var stackWord = wordStack.pop();
+				var sw = stackWord.toLowerCase();
+				if ( modifier.includes( sw ) )
 				{
-					title.unshift( part );
-				} else {
-					// walk forward again removing any stop words
-					break;
-				}
-			}
-			for ( var jj = 0; jj < title.length; jj++ )
-			{
-				part = title[ jj ];
-				p = part.toLowerCase();
-				if ( jtr.debug ) console.log( '==', part );
-				if ( stops.includes( p ) )
-				{
-					if ( jtr.debug ) console.log( 'XX' );
-					title.shift();
-					jj--;
+					title.unshift( stackWord );
+				} else if ( stops.includes( sw ) ) {
+					title.unshift( stackWord );
 				} else {
 					break;
 				}
 			}
-			wordStack = [];
+		};
+
+		var finalizeTitle = function ()
+		{
+			if ( jtr.debug ) console.log( '1 -', title );
+			addWordsToStart();
+			if ( jtr.debug ) console.log( '2 -', title );
+			stripStopsOffEnd();
+			if ( jtr.debug ) console.log( '3 -', title );
 			var titleString = title.join( ' ' );
+			if ( ( title.length == 1 && ! single.includes( titleString.toLowerCase() ) ) || title.length == 0 )
+			{
+				wordStack = [];
+				primaryFound = [];
+				endFound = false;
+				title = [];
+				return;
+			}
 			if ( jtr.debug ) console.log( '***', titleString );
-			var capitalized = jtr.isCapitalized( title , stops );
+			var capitalized = jtr.isCapitalized( title, stops );
 			if ( ! requireCapitalized || capitalized )
 			{
 				jobTitles.push(
@@ -64,35 +80,52 @@ jtr.find = function ( txt, config )
 			}
 		};
 
-		if ( jtr.debug ) console.log( '||', split );
+		var primaryFound = false;
+		var endFound = false;
 		split = split.replace( /&/g, 'and' );
 		var words = jtr.words( split );
 		_.each( words, ( word, wordIdx ) =>
 		{
 			var w = word.toLowerCase();
 			if ( jtr.debug ) console.log( w );
-			if ( ends.includes( w ) )
+			if ( ! primaryFound )
 			{
-				end = true;
-				wordStack.push( word );
-				if ( jtr.debug ) console.log( '!', w );
-			} else {
-				if ( end )
+				if ( primary.includes( w ) )
 				{
-					// walk back up the stack
-					walkWordStackBackwards();
-					wordStack.push( word );
+					primaryFound = true;
+					if ( jtr.debug ) console.log( '+', w );
+					title.push( word );
 				} else {
 					wordStack.push( word );
 				}
-				end = false;
+			} else {
+				if ( ! endFound )
+				{
+					if ( modifier.includes( w ) )
+					{
+						if ( jtr.debug ) console.log( '~', w );
+						title.push( word );
+					} else if ( stops.includes( w ) ) {
+						if ( jtr.debug ) console.log( '.', w );
+						title.push( word );
+					} else if ( primary.includes( w ) ) {
+						if ( jtr.debug ) console.log( '+', w );
+						title.push( word );
+					} else {
+						endFound = true;
+						finalizeTitle();
+					}
+				}
 			}
 		});
-		if ( end && wordStack.length > 0 )
+		if ( ! endFound && title.length > 0 )
 		{
-			walkWordStackBackwards();
+			finalizeTitle();
+		} else {
+			if ( jtr.debug ) console.log( '???', title, endFound, wordStack );
 		}
 	});
+
 	return jobTitles;
 };
 
