@@ -28,3 +28,7 @@ titlesFound = jr.find( txt, { capitalized : true } );
   * original version
 * 2018.06.20 - version 1.0.2
   * npm version
+* 2018.06.29 - version 1.1.1
+  * new revision using much part of speech approach
+* 2018.07.02 - version 1.1.3
+  * removed some old code and stripping stops off both start and end

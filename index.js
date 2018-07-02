@@ -19,7 +19,7 @@ jtr.find = function ( txt, config )
 		var wordStack = [];
 		var title = [];
 
-		var stripStopsOffEnd = function ()
+		var stripStopsOffEndAndStart = function ()
 		{
 			var titleLength = title.length;
 			for ( var ii = 0; ii < titleLength; ii++ )
@@ -28,6 +28,16 @@ jtr.find = function ( txt, config )
 				if ( ! stops.includes( t.toLowerCase() ) )
 				{
 					title.push( t );
+					break;
+				}
+			}
+			var titleLength = title.length;
+			for ( var ii = 0; ii < titleLength; ii++ )
+			{
+				var t = title.shift();
+				if ( ! stops.includes( t.toLowerCase() ) )
+				{
+					title.unshift( t );
 					break;
 				}
 			}
@@ -56,7 +66,7 @@ jtr.find = function ( txt, config )
 			if ( jtr.debug ) console.log( '1 -', title );
 			addWordsToStart();
 			if ( jtr.debug ) console.log( '2 -', title );
-			stripStopsOffEnd();
+			stripStopsOffEndAndStart();
 			if ( jtr.debug ) console.log( '3 -', title );
 			var titleString = title.join( ' ' );
 			if ( ( title.length == 1 && ! single.includes( titleString.toLowerCase() ) ) || title.length == 0 )
