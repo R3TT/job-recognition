@@ -88,6 +88,10 @@ jtr.find = function ( txt, config )
 					capitalized: capitalized
 				});
 			}
+			wordStack = [];
+			primaryFound = [];
+			endFound = false;
+			title = [];
 		};
 
 		var primaryFound = false;
@@ -104,6 +108,10 @@ jtr.find = function ( txt, config )
 				{
 					primaryFound = true;
 					if ( jtr.debug ) console.log( '+', w );
+					title.push( word );
+				} else if ( single.includes( w ) ) {
+					primaryFound = true;
+					if ( jtr.debug ) console.log( '=', w );
 					title.push( word );
 				} else {
 					wordStack.push( word );
